@@ -58,6 +58,7 @@ def data_preprocessing(data):
 
     data['power_per_volume'] = data['max_power'] / data['engine']
     data['year_squared'] = data['year'] ** 2
+    data['km_per_year'] = data['km_driven'] / (2022 - data['year'])
     data['owner_type'] = data['owner'] \
         .apply(lambda x: 1 if (x == 'First Owner' or x == 'Second Owner' or x == 'Test Drive Car') else 0)
 
@@ -65,10 +66,11 @@ def data_preprocessing(data):
 
 
 def ohe_scl(data):
-    data = data_preprocessing(data)
+
     data_ohe = ohe.transform(data.select_dtypes(include=object))
     data_oh = pd.DataFrame(data=data_ohe, columns=ohe.get_feature_names_out(list(data.select_dtypes(include=object))))
     data_onehot = data.select_dtypes(include=np.number).join(data_oh)
+    print(list(data_onehot))
     data_scl = scl.transform(data_onehot)
     data_scaled = pd.DataFrame(data=data_scl, columns=list(data_onehot))
 
@@ -86,12 +88,12 @@ def predict_item(item: Item) -> float:
 
 @app.post("/predict_items")
 def predict_items(file: UploadFile):
-    data = pd.read_csv(file.filename)
-    data = data.drop(['torque', 'selling_price'], axis=1)
+    data_file = pd.read_csv(file.filename)
+    data = data_file.drop(['torque', 'selling_price'], axis=1)
     data = data_preprocessing(data)
     data_scaled = ohe_scl(data)
 
-    data['pred'] = ridge.predict(data_scaled)
-    data.to_csv('prediction.csv')
+    data_file['pred'] = ridge.predict(data_scaled)
+    data_file.to_csv('predicted.csv')
 
-    return FileResponse('prediction.csv')
+    return FileResponse('predicted.csv')
